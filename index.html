@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trail Pacing Analyzer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --bg: #0f1114;
+      --surface: #1a1d23;
+      --border: #2d333b;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3d8bfd;
+      --flat: #6e7681;
+      --run-hike: #3fb950;
+      --hike: #e3b341;
+      --steep: #f85149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .header-text { flex: 1; min-width: 12rem; }
+    h1 { font-size: 1.15rem; font-weight: 600; }
+    .subtitle { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+    .import-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .import-btn:hover { filter: brightness(1.08); }
+    .import-btn input { display: none; }
+    .import-btn.loading { opacity: 0.7; pointer-events: none; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+      gap: 0.6rem;
+      padding: 0.85rem 1.25rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .stat label {
+      display: block;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .stat span { font-size: 1.15rem; font-weight: 600; }
+    .stat small { display: block; font-size: 0.65rem; color: var(--muted); font-weight: 400; }
+    .stat.selection { outline: 1px solid var(--accent); border-radius: 6px; padding: 0.35rem 0.5rem; }
+    #map { height: 42vh; min-height: 220px; width: 100%; }
+    .charts {
+      padding: 0.75rem 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.35rem 0.35rem;
+    }
+    .chart-title {
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding: 0 0.5rem 0.35rem;
+    }
+    svg.profile { width: 100%; height: 160px; display: block; cursor: crosshair; }
+    svg.grade-chart { width: 100%; height: 56px; display: block; }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      padding: 0.25rem 0.5rem 0;
+    }
+    .legend i {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 0.25rem;
+      vertical-align: -1px;
+    }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0 1rem 0.75rem;
+      flex-wrap: wrap;
+    }
+    button.secondary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    button.secondary:hover { border-color: var(--accent); }
+    .hint { font-size: 0.75rem; color: var(--muted); }
+    .empty-state {
+      padding: 3rem 1.5rem;
+      text-align: center;
+      max-width: 28rem;
+      margin: 0 auto;
+    }
+    .empty-state p { color: var(--muted); margin-top: 0.75rem; font-size: 0.9rem; }
+    .empty-state .import-btn { margin-top: 1.25rem; }
+    .error-banner {
+      display: none;
+      margin: 0 1.25rem 0.75rem;
+      padding: 0.6rem 0.85rem;
+      background: rgba(248, 81, 73, 0.12);
+      border: 1px solid var(--steep);
+      border-radius: 6px;
+      color: var(--steep);
+      font-size: 0.85rem;
+    }
+    .error-banner.visible { display: block; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-text">
+      <h1 id="route-name">Trail Pacing Analyzer</h1>
+      <p class="subtitle" id="route-meta">Import a GPX file to analyze distance, elevation, and grade.</p>
+    </div>
+    <label class="import-btn" id="import-label">
+      Import GPX
+      <input type="file" id="gpx-file" accept=".gpx,application/gpx+xml" />
+    </label>
+  </header>
+
+  <p class="error-banner" id="error-banner" role="alert"></p>
+
+  <section id="empty-state" class="empty-state">
+    <p>Drop a race or trail GPX here. Processing runs entirely in your browser — nothing is uploaded to a server.</p>
+    <label class="import-btn">
+      Choose GPX file
+      <input type="file" class="gpx-file-input" accept=".gpx,application/gpx+xml" />
+    </label>
+  </section>
+
+  <section id="main-content" hidden>
+    <div class="stats" id="stats"></div>
+    <div id="map"></div>
+    <div class="controls">
+      <button type="button" class="secondary" id="reset-zoom">Reset section</button>
+      <label class="import-btn" style="padding:0.35rem 0.75rem;font-size:0.8rem">
+        New GPX
+        <input type="file" class="gpx-file-input" accept=".gpx,application/gpx+xml" />
+      </label>
+      <span class="hint">Drag on the elevation profile to select a section. Stats update for the selection.</span>
+    </div>
+    <div class="charts">
+      <div class="chart-wrap">
+        <div class="chart-title">Elevation (m) — distance (km) · colored by grade</div>
+        <svg class="profile" id="elev-chart" aria-label="Elevation profile"></svg>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">Grade (%)</div>
+        <svg class="grade-chart" id="grade-chart"></svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--flat)"></i>Runnable (0–8%)</span>
+        <span><i style="background:var(--run-hike)"></i>Run + hike (8–15%)</span>
+        <span><i style="background:var(--hike)"></i>Hike (15–25%)</span>
+        <span><i style="background:var(--steep)"></i>Steep (&gt;25%)</span>
+      </div>
+    </div>
+  </section>
+
+  <script src="gpx.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    let THRESHOLD_M = 6;
+    const GRADE_FLAT = 8;
+    const GRADE_RUN_HIKE = 15;
+    const GRADE_HIKE = 25;
+
+    let route = null;
+    let map, routeLine, highlightLine;
+    let selStart = null, selEnd = null;
+    let dragging = null;
+    let viewMinKm = null, viewMaxKm = null;
+    let interactionReady = false;
+
+    const gradeColor = (g) => {
+      const a = Math.abs(g);
+      if (a < GRADE_FLAT) return "var(--flat)";
+      if (a < GRADE_RUN_HIKE) return "var(--run-hike)";
+      if (a < GRADE_HIKE) return "var(--hike)";
+      return "var(--steep)";
+    };
+
+    function showError(msg) {
+      const el = document.getElementById("error-banner");
+      el.textContent = msg;
+      el.classList.add("visible");
+    }
+
+    function clearError() {
+      const el = document.getElementById("error-banner");
+      el.textContent = "";
+      el.classList.remove("visible");
+    }
+
+    function setLoading(loading) {
+      const label = document.getElementById("import-label");
+      label.classList.toggle("loading", loading);
+      const text = label.childNodes[0];
+      if (text?.nodeType === Node.TEXT_NODE) {
+        text.textContent = loading ? "Processing…" : "Import GPX";
+      }
+    }
+
+    function destroyMap() {
+      if (map) {
+        map.remove();
+        map = routeLine = highlightLine = null;
+      }
+      document.getElementById("map").innerHTML = "";
+    }
+
+    function applyRoute(data) {
+      clearError();
+      route = data;
+      THRESHOLD_M = route.method?.threshold_m ?? 6;
+      selStart = selEnd = null;
+      viewMinKm = viewMaxKm = null;
+
+      document.getElementById("empty-state").hidden = true;
+      document.getElementById("main-content").hidden = false;
+      document.getElementById("route-name").textContent = route.name;
+      document.getElementById("route-meta").textContent =
+        `${route.source_gpx} · ${route.summary.point_count} points · ${route.method.label}`;
+
+      destroyMap();
+      initMap();
+      renderStats(null);
+      drawCharts();
+      if (!interactionReady) {
+        setupInteraction();
+        interactionReady = true;
+      }
+      document.getElementById("reset-zoom").onclick = () => {
+        selStart = selEnd = null;
+        viewMinKm = viewMaxKm = null;
+        renderStats(null);
+        drawCharts();
+        updateMapHighlight();
+        if (routeLine) routeLine.setStyle({ opacity: 0.85 });
+      };
+    }
+
+    function handleGpxFile(file) {
+      if (!file) return;
+      if (!/\.gpx$/i.test(file.name)) {
+        showError("Please choose a .gpx file.");
+        return;
+      }
+      clearError();
+      setLoading(true);
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = GpxAnalyzer.buildRouteFromGpx(reader.result, file.name);
+          applyRoute(data);
+        } catch (e) {
+          showError(e.message || "Could not parse GPX.");
+        } finally {
+          setLoading(false);
+        }
+      };
+      reader.onerror = () => {
+        setLoading(false);
+        showError("Could not read file.");
+      };
+      reader.readAsText(file);
+    }
+
+    function bindFileInput(input) {
+      if (!input) return;
+      input.addEventListener("change", (e) => {
+        handleGpxFile(e.target.files[0]);
+        e.target.value = "";
+      });
+    }
+
+    document.querySelectorAll(".gpx-file-input").forEach(bindFileInput);
+    bindFileInput(document.getElementById("gpx-file"));
+
+    function bindDropZone(el) {
+      el.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        el.style.outline = "2px dashed var(--accent)";
+      });
+      el.addEventListener("dragleave", () => {
+        el.style.outline = "";
+      });
+      el.addEventListener("drop", (e) => {
+        e.preventDefault();
+        el.style.outline = "";
+        const file = e.dataTransfer?.files?.[0];
+        if (file) handleGpxFile(file);
+      });
+    }
+    bindDropZone(document.getElementById("empty-state"));
+
+    function thresholdGainLoss(eles, threshold) {
+      let gain = 0, loss = 0;
+      let rMin = eles[0], rMax = eles[0];
+      for (const e of eles) {
+        if (e < rMin) rMin = e;
+        const up = e - rMin;
+        if (up >= threshold) { gain += up; rMin = e; }
+        if (e > rMax) rMax = e;
+        const down = rMax - e;
+        if (down >= threshold) { loss += down; rMax = e; }
+      }
+      return { gain, loss };
+    }
+
+    function segmentStats(km0, km1) {
+      const fullKm = route.full.km;
+      const fullEle = route.full.elevation_m;
+      let i0 = fullKm.findIndex((k) => k >= km0);
+      if (i0 < 0) i0 = fullKm.length - 1;
+      let i1 = fullKm.length - 1;
+      while (i1 > i0 && fullKm[i1] > km1) i1--;
+      const eles = fullEle.slice(i0, i1 + 1);
+      const { gain, loss } = thresholdGainLoss(eles, THRESHOLD_M);
+      const dist = km1 - km0;
+      const grades = route.full.grade_pct.slice(i0 + 1, i1 + 1);
+      const maxUp = grades.length ? Math.max(0, ...grades.filter((g) => g > 0)) : 0;
+      const maxDown = grades.length ? Math.min(0, ...grades.filter((g) => g < 0)) : 0;
+      const elevDelta = eles.length >= 2 ? eles[eles.length - 1] - eles[0] : 0;
+      const avgGrade = dist > 0 ? (elevDelta / (dist * 1000)) * 100 : 0;
+      return {
+        distance_km: dist,
+        gain_m: Math.round(gain),
+        loss_m: Math.round(loss),
+        avg_grade_pct: +avgGrade.toFixed(1),
+        max_grade_up_pct: +maxUp.toFixed(1),
+        max_grade_down_pct: +maxDown.toFixed(1),
+        start_km: +km0.toFixed(2),
+        end_km: +km1.toFixed(2),
+      };
+    }
+
+    function renderStats(seg) {
+      const s = route.summary;
+      const full = !seg;
+      const el = document.getElementById("stats");
+      const items = full ? [
+        ["Distance", `${s.distance_km} km`],
+        ["Elevation gain", `${s.elevation_gain_m} m`, route.method.label],
+        ["Elevation loss", `${s.elevation_loss_m} m`],
+        ["Naive gain", `${s.naive_gain_m} m`, "Raw sum (Komoot-style)"],
+        ["Min / max", `${s.min_elevation_m} – ${s.max_elevation_m} m`],
+      ] : [
+        ["Section", `${seg.start_km} – ${seg.end_km} km`, "selected"],
+        ["Distance", `${seg.distance_km.toFixed(2)} km`],
+        ["Gain", `${seg.gain_m} m`],
+        ["Loss", `${seg.loss_m} m`],
+        ["Avg grade", `${seg.avg_grade_pct}%`],
+        ["Max up / down", `${seg.max_grade_up_pct}% / ${seg.max_grade_down_pct}%`],
+      ];
+      el.innerHTML = items.map(([label, val, sub]) =>
+        `<div class="stat${!full ? " selection" : ""}"><label>${label}</label><span>${val}</span>${sub ? `<small>${sub}</small>` : ""}</div>`
+      ).join("");
+    }
+
+    function initMap() {
+      const coords = route.profile.lat.map((lat, i) => [lat, route.profile.lon[i]]);
+      map = L.map("map", { zoomControl: true });
+      L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenTopoMap",
+        maxZoom: 17,
+      }).addTo(map);
+      routeLine = L.polyline(coords, { color: "#6e7681", weight: 4, opacity: 0.85 }).addTo(map);
+      highlightLine = L.polyline([], { color: "#3d8bfd", weight: 6, opacity: 1 }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [24, 24] });
+    }
+
+    function updateMapHighlight() {
+      if (!highlightLine) return;
+      const km = route.profile.km;
+      const lat = route.profile.lat;
+      const lon = route.profile.lon;
+      if (selStart == null || selEnd == null) {
+        highlightLine.setLatLngs([]);
+        routeLine.setStyle({ opacity: 0.85 });
+        return;
+      }
+      const a = Math.min(selStart, selEnd);
+      const b = Math.max(selStart, selEnd);
+      const seg = [];
+      for (let i = 0; i < km.length; i++) {
+        if (km[i] >= a && km[i] <= b) seg.push([lat[i], lon[i]]);
+      }
+      highlightLine.setLatLngs(seg);
+      routeLine.setStyle({ opacity: 0.45 });
+    }
+
+    function chartRange() {
+      const km = route.profile.km;
+      return {
+        minK: viewMinKm ?? km[0],
+        maxK: viewMaxKm ?? km[km.length - 1],
+      };
+    }
+
+    function drawCharts() {
+      if (!route) return;
+      const prof = route.profile;
+      const { minK, maxK } = chartRange();
+      const pad = { l: 48, r: 12, t: 8, b: 22 };
+      const W = document.getElementById("elev-chart").clientWidth || 800;
+      const H = 160;
+
+      const indices = prof.km.map((k, i) => i).filter((i) => prof.km[i] >= minK && prof.km[i] <= maxK);
+      if (indices.length < 2) return;
+
+      const eles = indices.map((i) => prof.elevation_m[i]);
+      const eleMin = Math.min(...eles) - 20;
+      const eleMax = Math.max(...eles) + 20;
+      const gradeMin = -30, gradeMax = 30;
+
+      const xScale = (k) => pad.l + ((k - minK) / (maxK - minK)) * (W - pad.l - pad.r);
+      const yScale = (e) => pad.t + (1 - (e - eleMin) / (eleMax - eleMin)) * (H - pad.t - pad.b);
+      const yG = (g) => pad.t + (1 - (g - gradeMin) / (gradeMax - gradeMin)) * (56 - pad.t - 14);
+
+      const segments = [];
+      for (let j = 0; j < indices.length - 1; j++) {
+        const i = indices[j], i2 = indices[j + 1];
+        const g = prof.grade_pct[i2];
+        segments.push({
+          x1: xScale(prof.km[i]),
+          y1: yScale(prof.elevation_m[i]),
+          x2: xScale(prof.km[i2]),
+          y2: yScale(prof.elevation_m[i2]),
+          color: gradeColor(g),
+        });
+      }
+
+      const elevSvg = document.getElementById("elev-chart");
+      elevSvg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      let svg = `<rect width="${W}" height="${H}" fill="transparent"/>`;
+      for (let e = Math.ceil(eleMin / 100) * 100; e <= eleMax; e += 100) {
+        const y = yScale(e);
+        svg += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#2d333b"/>`;
+        svg += `<text x="${pad.l - 6}" y="${y + 4}" fill="#8b949e" font-size="9" text-anchor="end">${e}</text>`;
+      }
+      const step = maxK - minK > 30 ? 10 : 5;
+      for (let k = Math.ceil(minK / step) * step; k <= maxK; k += step) {
+        const x = xScale(k);
+        svg += `<line x1="${x}" y1="${pad.t}" x2="${x}" y2="${H - pad.b}" stroke="#2d333b"/>`;
+        svg += `<text x="${x}" y="${H - 4}" fill="#8b949e" font-size="9" text-anchor="middle">${k}</text>`;
+      }
+      segments.forEach((s) => {
+        const flat = s.color === "var(--flat)";
+        svg += `<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}" stroke="${s.color}" stroke-width="${flat ? 2 : 2.5}" stroke-linecap="round" opacity="${flat ? 0.55 : 1}"/>`;
+      });
+      if (selStart != null && selEnd != null) {
+        const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
+        const x1 = xScale(a), x2 = xScale(b);
+        svg += `<rect x="${x1}" y="${pad.t}" width="${x2 - x1}" height="${H - pad.t - pad.b}" fill="var(--accent)" opacity="0.15"/>`;
+        svg += `<line x1="${x1}" y1="${pad.t}" x2="${x1}" y2="${H - pad.b}" stroke="var(--accent)" stroke-width="2"/>`;
+        svg += `<line x1="${x2}" y1="${pad.t}" x2="${x2}" y2="${H - pad.b}" stroke="var(--accent)" stroke-width="2"/>`;
+      }
+      elevSvg.innerHTML = svg;
+
+      const gW = W, gH = 56;
+      const gradeSvg = document.getElementById("grade-chart");
+      gradeSvg.setAttribute("viewBox", `0 0 ${gW} ${gH}`);
+      let gsvg = `<rect width="${gW}" height="${gH}" fill="transparent"/>`;
+      gsvg += `<line x1="${pad.l}" y1="${yG(0)}" x2="${gW - pad.r}" y2="${yG(0)}" stroke="#8b949e" stroke-dasharray="4"/>`;
+      for (let j = 0; j < indices.length - 1; j++) {
+        const i = indices[j], i2 = indices[j + 1];
+        const x1 = xScale(prof.km[i]), x2 = xScale(prof.km[i2]);
+        const g = prof.grade_pct[i2];
+        const y0 = yG(0), y1 = yG(g);
+        const c = gradeColor(g);
+        const flat = c === "var(--flat)";
+        gsvg += `<rect x="${x1}" y="${Math.min(y0, y1)}" width="${Math.max(1, x2 - x1)}" height="${Math.abs(y1 - y0)}" fill="${c}" opacity="${flat ? 0.45 : 0.9}"/>`;
+      }
+      gradeSvg.innerHTML = gsvg;
+    }
+
+    function kmFromEvent(svg, evt) {
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox.baseVal;
+      const x = ((evt.clientX - rect.left) / rect.width) * vb.width;
+      const pad = { l: 48, r: 12 };
+      const { minK, maxK } = chartRange();
+      return minK + ((x - pad.l) / (vb.width - pad.l - pad.r)) * (maxK - minK);
+    }
+
+    function setupInteraction() {
+      const svg = document.getElementById("elev-chart");
+      svg.addEventListener("mousedown", (e) => {
+        dragging = "select";
+        selStart = selEnd = kmFromEvent(svg, e);
+        drawCharts();
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!dragging || !route) return;
+        selEnd = kmFromEvent(svg, e);
+        renderStats(segmentStats(Math.min(selStart, selEnd), Math.max(selStart, selEnd)));
+        drawCharts();
+        updateMapHighlight();
+      });
+      window.addEventListener("mouseup", () => {
+        if (!dragging || !route) return;
+        dragging = null;
+        if (selStart != null && selEnd != null) {
+          const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
+          if (b - a > 0.3) {
+            viewMinKm = a;
+            viewMaxKm = b;
+          }
+          renderStats(segmentStats(a, b));
+          drawCharts();
+          updateMapHighlight();
+        }
+      });
+      window.addEventListener("resize", () => drawCharts());
+    }
+  </script>
+</body>
+</html>

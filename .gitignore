@@ -1,0 +1,4 @@
+.DS_Store
+*.gpx
+route.json
+route_data.js
