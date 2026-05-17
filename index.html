@@ -61,11 +61,33 @@
       color: var(--text);
       border: 1px solid var(--sidebar-border);
     }
+    .app-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
     .main-layout {
       flex: 1;
       display: flex;
       min-height: 0;
     }
+    .bottom-charts {
+      flex-shrink: 0;
+      background: #fff;
+      border-top: 1px solid var(--sidebar-border);
+      padding: 0.6rem 1rem 0.75rem;
+    }
+    .bottom-charts .chart-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }
+    .bottom-charts .chart-wrap {
+      margin-bottom: 0.45rem;
+    }
+    .bottom-charts svg.profile { height: 150px; }
+    .bottom-charts svg.grade-chart { height: 56px; }
     .map-panel {
       flex: 1;
       min-width: 0;
@@ -169,31 +191,21 @@
       cursor: pointer;
     }
     button.ghost:hover { border-color: var(--accent); }
-    .charts-block {
-      margin-top: auto;
-      border-top: 1px solid var(--sidebar-border);
-      padding-top: 0.75rem;
-    }
-    .chart-label {
-      font-size: 0.68rem;
-      color: var(--muted);
-      margin-bottom: 0.25rem;
-    }
     .chart-wrap {
       background: var(--chart-bg);
       border: 1px solid var(--sidebar-border);
       border-radius: 6px;
       padding: 0.25rem 0.15rem 0.15rem;
-      margin-bottom: 0.5rem;
     }
-    svg.profile { width: 100%; height: 130px; display: block; cursor: crosshair; }
-    svg.grade-chart { width: 100%; height: 48px; display: block; cursor: crosshair; }
+    svg.profile { width: 100%; display: block; cursor: crosshair; }
+    svg.grade-chart { width: 100%; display: block; cursor: crosshair; }
     .legend {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem 0.75rem;
-      font-size: 0.65rem;
+      font-size: 0.68rem;
       color: var(--muted);
+      margin-top: 0.35rem;
     }
     .legend i {
       display: inline-block;
@@ -229,8 +241,8 @@
     .leaflet-control-zoom { border: none !important; box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important; }
     @media (max-width: 720px) {
       .main-layout { flex-direction: column; }
-      .sidebar { width: 100%; max-height: 45vh; border-left: none; border-top: 1px solid var(--sidebar-border); }
-      #map { min-height: 45vh; }
+      .sidebar { width: 100%; max-height: 38vh; border-left: none; border-bottom: 1px solid var(--sidebar-border); }
+      #map { min-height: 38vh; }
     }
   </style>
 </head>
@@ -253,51 +265,52 @@
     </label>
   </section>
 
-  <div id="main-content" class="main-layout" hidden>
-    <div class="map-panel">
-      <div id="map"></div>
-    </div>
-    <aside class="sidebar">
-      <div class="sidebar-inner">
-        <h2 class="route-title" id="route-title">—</h2>
-        <p class="route-meta" id="route-meta"></p>
-        <p class="method-note" id="method-note"></p>
-
-        <div class="hero-stat">
-          <label>Distance</label>
-          <span id="stat-distance">—</span>
-        </div>
-        <div class="stat-grid" id="stat-grid"></div>
-
-        <div class="section-stats" id="section-stats" hidden></div>
-        <p class="hover-readout" id="hover-readout"></p>
-
-        <div class="sidebar-controls">
-          <button type="button" class="ghost" id="reset-zoom">Reset section</button>
-          <label class="import-btn secondary" style="padding:0.3rem 0.6rem;font-size:0.75rem">
-            New GPX
-            <input type="file" class="gpx-file-input" accept=".gpx,application/gpx+xml" />
-          </label>
-        </div>
-
-        <div class="charts-block">
-          <p class="chart-label">Elevation · drag to select a section</p>
-          <div class="chart-wrap">
-            <svg class="profile" id="elev-chart" aria-label="Elevation profile"></svg>
-          </div>
-          <p class="chart-label">Grade</p>
-          <div class="chart-wrap">
-            <svg class="grade-chart" id="grade-chart"></svg>
-          </div>
-          <div class="legend">
-            <span><i style="background:var(--flat)"></i>Runnable (0–8%)</span>
-            <span><i style="background:var(--run-hike)"></i>Run + hike (8–15%)</span>
-            <span><i style="background:var(--hike)"></i>Hike (15–25%)</span>
-            <span><i style="background:var(--steep)"></i>Steep (&gt;25%)</span>
-          </div>
-        </div>
+  <div id="main-content" class="app-body" hidden>
+    <div class="main-layout">
+      <div class="map-panel">
+        <div id="map"></div>
       </div>
-    </aside>
+      <aside class="sidebar">
+        <div class="sidebar-inner">
+          <h2 class="route-title" id="route-title">—</h2>
+          <p class="route-meta" id="route-meta"></div>
+          <p class="method-note" id="method-note"></div>
+
+          <div class="hero-stat">
+            <label>Distance</label>
+            <span id="stat-distance">—</span>
+          </div>
+          <div class="stat-grid" id="stat-grid"></div>
+
+          <div class="section-stats" id="section-stats" hidden></div>
+          <p class="hover-readout" id="hover-readout"></div>
+
+          <div class="sidebar-controls">
+            <button type="button" class="ghost" id="reset-zoom">Reset section</button>
+            <label class="import-btn secondary" style="padding:0.3rem 0.6rem;font-size:0.75rem">
+              New GPX
+              <input type="file" class="gpx-file-input" accept=".gpx,application/gpx+xml" />
+            </label>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <div class="bottom-charts">
+      <p class="chart-label">Elevation · drag to select a section · click faded area to reset</p>
+      <div class="chart-wrap">
+        <svg class="profile" id="elev-chart" aria-label="Elevation profile"></svg>
+      </div>
+      <p class="chart-label">Grade</p>
+      <div class="chart-wrap">
+        <svg class="grade-chart" id="grade-chart"></svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--flat)"></i>Runnable (0–8%)</span>
+        <span><i style="background:var(--run-hike)"></i>Run + hike (8–15%)</span>
+        <span><i style="background:var(--hike)"></i>Hike (15–25%)</span>
+        <span><i style="background:var(--steep)"></i>Steep (&gt;25%)</span>
+      </div>
+    </div>
   </div>
 
   <script src="gpx.js"></script>
@@ -312,7 +325,7 @@
     let map, baseLine, routeLine, highlightLine, hoverMarker;
     let selStart = null, selEnd = null;
     let dragging = null;
-    let viewMinKm = null, viewMaxKm = null;
+    let focusStart = null, focusEnd = null;
     let hoverKm = null;
     let chartLayout = null;
     let interactionReady = false;
@@ -346,6 +359,25 @@
       document.getElementById("map").innerHTML = "";
     }
 
+    function routeKmBounds() {
+      const km = route.profile.km;
+      return { lo: km[0], hi: km[km.length - 1] };
+    }
+
+    function clampKm(km) {
+      const { lo, hi } = routeKmBounds();
+      return Math.max(lo, Math.min(hi, km));
+    }
+
+    function resetFocus() {
+      focusStart = focusEnd = null;
+      selStart = selEnd = null;
+      renderSectionStats(null);
+      drawCharts();
+      updateMapHighlight();
+      if (routeLine) routeLine.setStyle({ opacity: 1 });
+    }
+
     function closestFullIndex(km) {
       const arr = route.full.km;
       let best = 0, bestD = Infinity;
@@ -358,7 +390,7 @@
 
     function setHoverAtKm(km) {
       if (!route || !map) return;
-      hoverKm = km;
+      hoverKm = clampKm(km);
       const i = closestFullIndex(km);
       const lat = route.full.lat[i];
       const lon = route.full.lon[i];
@@ -379,7 +411,7 @@
       }
 
       document.getElementById("hover-readout").textContent =
-        `${km.toFixed(2)} km · ${Math.round(ele)} m · ${grade >= 0 ? "+" : ""}${grade.toFixed(1)}%`;
+        `${hoverKm.toFixed(2)} km · ${Math.round(ele)} m · ${grade >= 0 ? "+" : ""}${grade.toFixed(1)}%`;
 
       drawCharts();
     }
@@ -423,7 +455,7 @@
       route = data;
       THRESHOLD_M = route.method?.threshold_m ?? 6;
       selStart = selEnd = null;
-      viewMinKm = viewMaxKm = null;
+      focusStart = focusEnd = null;
       hoverKm = null;
 
       document.getElementById("empty-state").hidden = true;
@@ -438,14 +470,7 @@
         setupInteraction();
         interactionReady = true;
       }
-      document.getElementById("reset-zoom").onclick = () => {
-        selStart = selEnd = null;
-        viewMinKm = viewMaxKm = null;
-        renderSectionStats(null);
-        drawCharts();
-        updateMapHighlight();
-        if (routeLine) routeLine.setStyle({ opacity: 1 });
-      };
+      document.getElementById("reset-zoom").onclick = resetFocus;
     }
 
     function handleGpxFile(file) {
@@ -498,6 +523,9 @@
     }
 
     function segmentStats(km0, km1) {
+      km0 = clampKm(km0);
+      km1 = clampKm(km1);
+      if (km1 < km0) [km0, km1] = [km1, km0];
       const fullKm = route.full.km, fullEle = route.full.elevation_m;
       let i0 = fullKm.findIndex((k) => k >= km0);
       if (i0 < 0) i0 = fullKm.length - 1;
@@ -570,12 +598,14 @@
     function updateMapHighlight() {
       if (!highlightLine) return;
       const { km, lat, lon } = route.profile;
-      if (selStart == null || selEnd == null) {
+      const start = focusStart ?? selStart;
+      const end = focusEnd ?? selEnd;
+      if (start == null || end == null) {
         highlightLine.setLatLngs([]);
         routeLine.setStyle({ opacity: 1 });
         return;
       }
-      const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
+      const a = Math.min(start, end), b = Math.max(start, end);
       const seg = [];
       for (let i = 0; i < km.length; i++) {
         if (km[i] >= a && km[i] <= b) seg.push([lat[i], lon[i]]);
@@ -586,7 +616,15 @@
 
     function chartRange() {
       const km = route.profile.km;
-      return { minK: viewMinKm ?? km[0], maxK: viewMaxKm ?? km[km.length - 1] };
+      return { minK: km[0], maxK: km[km.length - 1] };
+    }
+
+    function segmentOpacity(km) {
+      if (focusStart == null || focusEnd == null) return 1;
+      const a = Math.min(focusStart, focusEnd);
+      const b = Math.max(focusStart, focusEnd);
+      if (km >= a && km <= b) return 1;
+      return 0.28;
     }
 
     function drawCharts() {
@@ -594,8 +632,8 @@
       const prof = route.profile;
       const { minK, maxK } = chartRange();
       const pad = { l: 40, r: 8, t: 6, b: 18 };
-      const W = document.getElementById("elev-chart").clientWidth || 280;
-      const H = 130;
+      const W = document.getElementById("elev-chart").clientWidth || 800;
+      const H = 150;
 
       const indices = prof.km.map((k, i) => i).filter((i) => prof.km[i] >= minK && prof.km[i] <= maxK);
       if (indices.length < 2) return;
@@ -618,14 +656,28 @@
         svg += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#e8e4db"/>`;
         svg += `<text x="${pad.l - 4}" y="${y + 3}" fill="#8a847a" font-size="8" text-anchor="end">${e}</text>`;
       }
+      const step = maxK - minK > 30 ? 10 : 5;
+      for (let k = Math.ceil(minK / step) * step; k <= maxK; k += step) {
+        const x = xScale(k);
+        svg += `<text x="${x}" y="${H - 4}" fill="#8a847a" font-size="8" text-anchor="middle">${k}</text>`;
+      }
+      if (focusStart != null && focusEnd != null) {
+        const fa = Math.min(focusStart, focusEnd), fb = Math.max(focusStart, focusEnd);
+        const xL = xScale(minK), xA = xScale(fa), xB = xScale(fb), xR = xScale(maxK);
+        const h = H - pad.t - pad.b;
+        if (xA > xL) svg += `<rect x="${xL}" y="${pad.t}" width="${xA - xL}" height="${h}" fill="#fff" opacity="0.55"/>`;
+        if (xR > xB) svg += `<rect x="${xB}" y="${pad.t}" width="${xR - xB}" height="${h}" fill="#fff" opacity="0.55"/>`;
+      }
       for (let j = 0; j < indices.length - 1; j++) {
         const i = indices[j], i2 = indices[j + 1];
         const g = prof.grade_pct[i2];
         const c = gradeColor(g);
         const flat = c === "var(--flat)";
+        const mid = (prof.km[i] + prof.km[i2]) / 2;
+        const op = (flat ? 0.5 : 1) * segmentOpacity(mid);
         svg += `<line x1="${xScale(prof.km[i])}" y1="${yScale(prof.elevation_m[i])}" ` +
           `x2="${xScale(prof.km[i2])}" y2="${yScale(prof.elevation_m[i2])}" ` +
-          `stroke="${c}" stroke-width="${flat ? 1.8 : 2.2}" stroke-linecap="round" opacity="${flat ? 0.5 : 1}"/>`;
+          `stroke="${c}" stroke-width="${flat ? 1.8 : 2.2}" stroke-linecap="round" opacity="${op}"/>`;
       }
       if (hoverKm != null && hoverKm >= minK && hoverKm <= maxK) {
         const hx = xScale(hoverKm);
@@ -634,12 +686,14 @@
         const hy = yScale(route.full.elevation_m[hi]);
         svg += `<circle cx="${hx}" cy="${hy}" r="4" fill="#c62828" stroke="#fff" stroke-width="1.5"/>`;
       }
-      if (selStart != null && selEnd != null) {
-        const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
+      const selA = focusStart ?? (dragging ? Math.min(selStart, selEnd) : null);
+      const selB = focusEnd ?? (dragging ? Math.max(selStart, selEnd) : null);
+      if (selA != null && selB != null) {
+        const a = Math.min(selA, selB), b = Math.max(selA, selB);
         const x1 = xScale(a), x2 = xScale(b);
-        svg += `<rect x="${x1}" y="${pad.t}" width="${x2 - x1}" height="${H - pad.t - pad.b}" fill="#c62828" opacity="0.1"/>`;
-        svg += `<line x1="${x1}" y1="${pad.t}" x2="${x1}" y2="${H - pad.b}" stroke="#c62828" stroke-width="1.5"/>`;
-        svg += `<line x1="${x2}" y1="${pad.t}" x2="${x2}" y2="${H - pad.b}" stroke="#c62828" stroke-width="1.5"/>`;
+        svg += `<rect x="${x1}" y="${pad.t}" width="${x2 - x1}" height="${H - pad.t - pad.b}" fill="#c62828" opacity="0.12"/>`;
+        svg += `<line x1="${x1}" y1="${pad.t}" x2="${x1}" y2="${H - pad.b}" stroke="#c62828" stroke-width="2"/>`;
+        svg += `<line x1="${x2}" y1="${pad.t}" x2="${x2}" y2="${H - pad.b}" stroke="#c62828" stroke-width="2"/>`;
       }
       elevSvg.innerHTML = svg;
 
@@ -653,7 +707,15 @@
         const g = prof.grade_pct[i2];
         const y0 = yG(0), y1 = yG(g);
         const c = gradeColor(g);
-        gsvg += `<rect x="${x1}" y="${Math.min(y0, y1)}" width="${Math.max(1, x2 - x1)}" height="${Math.abs(y1 - y0)}" fill="${c}" opacity="${c === "var(--flat)" ? 0.4 : 0.85}"/>`;
+        const mid = (prof.km[i] + prof.km[i2]) / 2;
+        const op = (c === "var(--flat)" ? 0.4 : 0.85) * segmentOpacity(mid);
+        gsvg += `<rect x="${x1}" y="${Math.min(y0, y1)}" width="${Math.max(1, x2 - x1)}" height="${Math.abs(y1 - y0)}" fill="${c}" opacity="${op}"/>`;
+      }
+      if (focusStart != null && focusEnd != null) {
+        const fa = Math.min(focusStart, focusEnd), fb = Math.max(focusStart, focusEnd);
+        const xL = xScale(minK), xA = xScale(fa), xB = xScale(fb), xR = xScale(maxK);
+        if (xA > xL) gsvg += `<rect x="${xL}" y="${pad.t}" width="${xA - xL}" height="40" fill="#fff" opacity="0.55"/>`;
+        if (xR > xB) gsvg += `<rect x="${xB}" y="${pad.t}" width="${xR - xB}" height="40" fill="#fff" opacity="0.55"/>`;
       }
       if (hoverKm != null && hoverKm >= minK && hoverKm <= maxK) {
         gsvg += `<line x1="${xScale(hoverKm)}" y1="${pad.t}" x2="${xScale(hoverKm)}" y2="44" stroke="#c62828" stroke-width="1.5" opacity="0.85"/>`;
@@ -665,8 +727,11 @@
       const rect = svg.getBoundingClientRect();
       const vb = svg.viewBox.baseVal;
       const x = ((evt.clientX - rect.left) / rect.width) * vb.width;
-      const { pad, minK, maxK, W } = chartLayout || { pad: { l: 40, r: 8 }, minK: 0, maxK: 1, W: 280 };
-      return minK + ((x - pad.l) / (W - pad.l - pad.r)) * (maxK - minK);
+      const { pad, minK, maxK, W } = chartLayout || { pad: { l: 40, r: 8 }, minK: 0, maxK: 1, W: 800 };
+      let frac = (x - pad.l) / (W - pad.l - pad.r);
+      frac = Math.max(0, Math.min(1, frac));
+      const km = minK + frac * (maxK - minK);
+      return route ? clampKm(km) : km;
     }
 
     function setupInteraction() {
@@ -681,15 +746,27 @@
       elev.addEventListener("mouseleave", () => { if (!dragging) clearHover(); });
       grade.addEventListener("mouseleave", () => { if (!dragging) clearHover(); });
 
-      elev.addEventListener("mousedown", (e) => {
+      const startSelect = (svg, e) => {
+        const km = kmFromEvent(svg, e);
+        if (focusStart != null && focusEnd != null) {
+          const a = Math.min(focusStart, focusEnd), b = Math.max(focusStart, focusEnd);
+          if (km < a || km > b) {
+            resetFocus();
+            return;
+          }
+        }
         dragging = "select";
-        selStart = selEnd = kmFromEvent(elev, e);
+        selStart = selEnd = km;
         drawCharts();
-      });
+      };
+      elev.addEventListener("mousedown", (e) => startSelect(elev, e));
+      grade.addEventListener("mousedown", (e) => startSelect(grade, e));
+
       window.addEventListener("mousemove", (e) => {
         if (!dragging || !route) return;
-        selEnd = kmFromEvent(elev, e);
-        renderSectionStats(segmentStats(Math.min(selStart, selEnd), Math.max(selStart, selEnd)));
+        selEnd = clampKm(kmFromEvent(elev, e));
+        const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
+        renderSectionStats(segmentStats(a, b));
         drawCharts();
         updateMapHighlight();
       });
@@ -697,8 +774,14 @@
         if (!dragging || !route) return;
         dragging = null;
         if (selStart != null && selEnd != null) {
-          const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
-          if (b - a > 0.3) { viewMinKm = a; viewMaxKm = b; }
+          const a = clampKm(Math.min(selStart, selEnd));
+          const b = clampKm(Math.max(selStart, selEnd));
+          selStart = a;
+          selEnd = b;
+          if (b - a > 0.3) {
+            focusStart = a;
+            focusEnd = b;
+          }
           renderSectionStats(segmentStats(a, b));
           drawCharts();
           updateMapHighlight();
