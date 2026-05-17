@@ -273,8 +273,8 @@
       <aside class="sidebar">
         <div class="sidebar-inner">
           <h2 class="route-title" id="route-title">—</h2>
-          <p class="route-meta" id="route-meta"></div>
-          <p class="method-note" id="method-note"></div>
+          <p class="route-meta" id="route-meta"></p>
+          <p class="method-note" id="method-note"></p>
 
           <div class="hero-stat">
             <label>Distance</label>
@@ -283,7 +283,7 @@
           <div class="stat-grid" id="stat-grid"></div>
 
           <div class="section-stats" id="section-stats" hidden></div>
-          <p class="hover-readout" id="hover-readout"></div>
+          <p class="hover-readout" id="hover-readout"></p>
 
           <div class="sidebar-controls">
             <button type="button" class="ghost" id="reset-zoom">Reset section</button>
@@ -432,12 +432,13 @@
       document.getElementById("route-meta").textContent = route.source_gpx;
       document.getElementById("method-note").textContent =
         `Elevation gain uses ${route.method.label} to filter GPS noise. Values are comparable across tracks; raw GPX sums are often much higher.`;
-      document.getElementById("stat-distance").textContent = `${s.distance_km} km`;
+      document.getElementById("stat-distance").textContent =
+        `${Number(s.distance_km).toFixed(1)} km`;
       document.getElementById("stat-grid").innerHTML = `
-        <div class="stat-box"><label>↑ Gain</label><span>${s.elevation_gain_m} m</span></div>
-        <div class="stat-box"><label>↓ Loss</label><span>${s.elevation_loss_m} m</span></div>
-        <div class="stat-box"><label>Min elev</label><span>${s.min_elevation_m} m</span></div>
-        <div class="stat-box"><label>Max elev</label><span>${s.max_elevation_m} m</span></div>
+        <div class="stat-box"><label>↑ Gain</label><span>${Math.round(s.elevation_gain_m)} m</span></div>
+        <div class="stat-box"><label>↓ Loss</label><span>${Math.round(s.elevation_loss_m)} m</span></div>
+        <div class="stat-box"><label>Min elev</label><span>${Math.round(s.min_elevation_m)} m</span></div>
+        <div class="stat-box"><label>Max elev</label><span>${Math.round(s.max_elevation_m)} m</span></div>
       `;
     }
 
@@ -619,12 +620,77 @@
       return { minK: km[0], maxK: km[km.length - 1] };
     }
 
-    function segmentOpacity(km) {
-      if (focusStart == null || focusEnd == null) return 1;
+    const FOCUS_WIDTH_RATIO = 0.85;
+
+    function getFocusBounds() {
+      if (focusStart == null || focusEnd == null) return null;
       const a = Math.min(focusStart, focusEnd);
       const b = Math.max(focusStart, focusEnd);
-      if (km >= a && km <= b) return 1;
-      return 0.28;
+      if (b - a < 0.3) return null;
+      return { a, b };
+    }
+
+    function buildChartScales(minK, maxK, pad, W, useFocus) {
+      const plotW = W - pad.l - pad.r;
+      const fb = useFocus ? getFocusBounds() : null;
+      if (!fb) {
+        const xScale = (k) => pad.l + ((k - minK) / (maxK - minK)) * plotW;
+        const kmFromX = (x) => {
+          const frac = Math.max(0, Math.min(1, (x - pad.l) / plotW));
+          return minK + frac * (maxK - minK);
+        };
+        return { xScale, kmFromX, focused: false, pad, plotW };
+      }
+      const { a: fa, b: fEnd } = fb;
+      const leftLen = fa - minK;
+      const rightLen = maxK - fEnd;
+      const focusLen = fEnd - fa;
+      const focusW = plotW * FOCUS_WIDTH_RATIO;
+      const edgeW = plotW - focusW;
+      const totalEdge = leftLen + rightLen;
+      const leftW = totalEdge > 1e-6 ? edgeW * (leftLen / totalEdge) : edgeW * 0.5;
+      const rightW = edgeW - leftW;
+
+      const xScale = (k) => {
+        if (k <= fa) {
+          if (leftLen < 1e-6) return pad.l;
+          return pad.l + ((k - minK) / leftLen) * leftW;
+        }
+        if (k <= fEnd) {
+          if (focusLen < 1e-6) return pad.l + leftW;
+          return pad.l + leftW + ((k - fa) / focusLen) * focusW;
+        }
+        if (rightLen < 1e-6) return pad.l + leftW + focusW;
+        return pad.l + leftW + focusW + ((k - fEnd) / rightLen) * rightW;
+      };
+
+      const kmFromX = (x) => {
+        if (x <= pad.l + leftW) {
+          if (leftW < 1e-6) return minK;
+          return minK + ((x - pad.l) / leftW) * leftLen;
+        }
+        if (x <= pad.l + leftW + focusW) {
+          if (focusW < 1e-6) return fa;
+          return fa + ((x - pad.l - leftW) / focusW) * focusLen;
+        }
+        if (rightW < 1e-6) return fEnd;
+        return fEnd + ((x - pad.l - leftW - focusW) / rightW) * rightLen;
+      };
+
+      return { xScale, kmFromX, focused: true, fa, fEnd, leftW, focusW, pad, plotW };
+    }
+
+    function segmentOpacity(km) {
+      const fb = getFocusBounds();
+      if (!fb) return 1;
+      if (km >= fb.a && km <= fb.b) return 1;
+      return 0.3;
+    }
+
+    function eventX(svg, evt, layout) {
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox.baseVal;
+      return ((evt.clientX - rect.left) / rect.width) * vb.width;
     }
 
     function drawCharts() {
@@ -643,10 +709,12 @@
       const eleMax = Math.max(...eles) + 15;
       const gradeMin = -30, gradeMax = 30;
 
-      const xScale = (k) => pad.l + ((k - minK) / (maxK - minK)) * (W - pad.l - pad.r);
+      const useFocus = !dragging && getFocusBounds() != null;
+      const scales = buildChartScales(minK, maxK, pad, W, useFocus);
+      const { xScale, kmFromX } = scales;
       const yScale = (e) => pad.t + (1 - (e - eleMin) / (eleMax - eleMin)) * (H - pad.t - pad.b);
       const yG = (g) => pad.t + (1 - (g - gradeMin) / (gradeMax - gradeMin)) * (48 - pad.t - 12);
-      chartLayout = { pad, minK, maxK, W, H, xScale };
+      chartLayout = { pad, minK, maxK, W, H, xScale, kmFromX, scales };
 
       const elevSvg = document.getElementById("elev-chart");
       elevSvg.setAttribute("viewBox", `0 0 ${W} ${H}`);
@@ -656,17 +724,26 @@
         svg += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#e8e4db"/>`;
         svg += `<text x="${pad.l - 4}" y="${y + 3}" fill="#8a847a" font-size="8" text-anchor="end">${e}</text>`;
       }
-      const step = maxK - minK > 30 ? 10 : 5;
-      for (let k = Math.ceil(minK / step) * step; k <= maxK; k += step) {
-        const x = xScale(k);
-        svg += `<text x="${x}" y="${H - 4}" fill="#8a847a" font-size="8" text-anchor="middle">${k}</text>`;
+      const kmLabels = scales.focused
+        ? [minK, scales.fa, scales.fEnd, maxK]
+        : (() => {
+            const step = maxK - minK > 30 ? 10 : 5;
+            const labels = [];
+            for (let k = Math.ceil(minK / step) * step; k <= maxK; k += step) labels.push(k);
+            return labels;
+          })();
+      const seen = new Set();
+      for (const k of kmLabels) {
+        const key = k.toFixed(1);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        svg += `<text x="${xScale(k)}" y="${H - 4}" fill="#8a847a" font-size="8" text-anchor="middle">${k.toFixed(1)}</text>`;
       }
-      if (focusStart != null && focusEnd != null) {
-        const fa = Math.min(focusStart, focusEnd), fb = Math.max(focusStart, focusEnd);
-        const xL = xScale(minK), xA = xScale(fa), xB = xScale(fb), xR = xScale(maxK);
+      if (scales.focused) {
         const h = H - pad.t - pad.b;
-        if (xA > xL) svg += `<rect x="${xL}" y="${pad.t}" width="${xA - xL}" height="${h}" fill="#fff" opacity="0.55"/>`;
-        if (xR > xB) svg += `<rect x="${xB}" y="${pad.t}" width="${xR - xB}" height="${h}" fill="#fff" opacity="0.55"/>`;
+        const xEdgeR = pad.l + scales.leftW + scales.focusW;
+        svg += `<rect x="${pad.l}" y="${pad.t}" width="${scales.leftW}" height="${h}" fill="#f5f3ee" opacity="0.72"/>`;
+        svg += `<rect x="${xEdgeR}" y="${pad.t}" width="${scales.plotW - scales.leftW - scales.focusW}" height="${h}" fill="#f5f3ee" opacity="0.72"/>`;
       }
       for (let j = 0; j < indices.length - 1; j++) {
         const i = indices[j], i2 = indices[j + 1];
@@ -686,11 +763,15 @@
         const hy = yScale(route.full.elevation_m[hi]);
         svg += `<circle cx="${hx}" cy="${hy}" r="4" fill="#c62828" stroke="#fff" stroke-width="1.5"/>`;
       }
-      const selA = focusStart ?? (dragging ? Math.min(selStart, selEnd) : null);
-      const selB = focusEnd ?? (dragging ? Math.max(selStart, selEnd) : null);
+      const dragScale = dragging
+        ? buildChartScales(minK, maxK, pad, W, false).xScale
+        : xScale;
+      const selA = dragging ? selStart : (getFocusBounds()?.a ?? null);
+      const selB = dragging ? selEnd : (getFocusBounds()?.b ?? null);
       if (selA != null && selB != null) {
         const a = Math.min(selA, selB), b = Math.max(selA, selB);
-        const x1 = xScale(a), x2 = xScale(b);
+        const xs = dragging ? dragScale : xScale;
+        const x1 = xs(a), x2 = xs(b);
         svg += `<rect x="${x1}" y="${pad.t}" width="${x2 - x1}" height="${H - pad.t - pad.b}" fill="#c62828" opacity="0.12"/>`;
         svg += `<line x1="${x1}" y1="${pad.t}" x2="${x1}" y2="${H - pad.b}" stroke="#c62828" stroke-width="2"/>`;
         svg += `<line x1="${x2}" y1="${pad.t}" x2="${x2}" y2="${H - pad.b}" stroke="#c62828" stroke-width="2"/>`;
@@ -711,11 +792,10 @@
         const op = (c === "var(--flat)" ? 0.4 : 0.85) * segmentOpacity(mid);
         gsvg += `<rect x="${x1}" y="${Math.min(y0, y1)}" width="${Math.max(1, x2 - x1)}" height="${Math.abs(y1 - y0)}" fill="${c}" opacity="${op}"/>`;
       }
-      if (focusStart != null && focusEnd != null) {
-        const fa = Math.min(focusStart, focusEnd), fb = Math.max(focusStart, focusEnd);
-        const xL = xScale(minK), xA = xScale(fa), xB = xScale(fb), xR = xScale(maxK);
-        if (xA > xL) gsvg += `<rect x="${xL}" y="${pad.t}" width="${xA - xL}" height="40" fill="#fff" opacity="0.55"/>`;
-        if (xR > xB) gsvg += `<rect x="${xB}" y="${pad.t}" width="${xR - xB}" height="40" fill="#fff" opacity="0.55"/>`;
+      if (scales.focused) {
+        const xEdgeR = pad.l + scales.leftW + scales.focusW;
+        gsvg += `<rect x="${pad.l}" y="${pad.t}" width="${scales.leftW}" height="40" fill="#f5f3ee" opacity="0.72"/>`;
+        gsvg += `<rect x="${xEdgeR}" y="${pad.t}" width="${scales.plotW - scales.leftW - scales.focusW}" height="40" fill="#f5f3ee" opacity="0.72"/>`;
       }
       if (hoverKm != null && hoverKm >= minK && hoverKm <= maxK) {
         gsvg += `<line x1="${xScale(hoverKm)}" y1="${pad.t}" x2="${xScale(hoverKm)}" y2="44" stroke="#c62828" stroke-width="1.5" opacity="0.85"/>`;
@@ -724,13 +804,10 @@
     }
 
     function kmFromEvent(svg, evt) {
-      const rect = svg.getBoundingClientRect();
-      const vb = svg.viewBox.baseVal;
-      const x = ((evt.clientX - rect.left) / rect.width) * vb.width;
-      const { pad, minK, maxK, W } = chartLayout || { pad: { l: 40, r: 8 }, minK: 0, maxK: 1, W: 800 };
-      let frac = (x - pad.l) / (W - pad.l - pad.r);
-      frac = Math.max(0, Math.min(1, frac));
-      const km = minK + frac * (maxK - minK);
+      const layout = chartLayout;
+      if (!layout) return 0;
+      const x = eventX(svg, evt, layout);
+      const km = layout.kmFromX(x);
       return route ? clampKm(km) : km;
     }
 
@@ -747,16 +824,25 @@
       grade.addEventListener("mouseleave", () => { if (!dragging) clearHover(); });
 
       const startSelect = (svg, e) => {
-        const km = kmFromEvent(svg, e);
-        if (focusStart != null && focusEnd != null) {
-          const a = Math.min(focusStart, focusEnd), b = Math.max(focusStart, focusEnd);
-          if (km < a || km > b) {
+        const layout = chartLayout;
+        const { minK, maxK } = chartRange();
+        const pad = layout?.pad ?? { l: 40, r: 8, t: 6, b: 18 };
+        const W = layout?.W ?? 800;
+        const x = eventX(svg, e, layout || { pad, W });
+
+        if (layout?.scales?.focused) {
+          const { leftW, focusW } = layout.scales;
+          const inFocusBand = x >= pad.l + leftW && x <= pad.l + leftW + focusW;
+          if (!inFocusBand) {
             resetFocus();
             return;
           }
+          focusStart = focusEnd = null;
         }
+
         dragging = "select";
-        selStart = selEnd = km;
+        const linear = buildChartScales(minK, maxK, pad, W, false);
+        selStart = selEnd = clampKm(linear.kmFromX(x));
         drawCharts();
       };
       elev.addEventListener("mousedown", (e) => startSelect(elev, e));
