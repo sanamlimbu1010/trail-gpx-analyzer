@@ -7,154 +7,236 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root {
-      --bg: #0f1114;
-      --surface: #1a1d23;
-      --border: #2d333b;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --accent: #3d8bfd;
-      --flat: #6e7681;
-      --run-hike: #3fb950;
-      --hike: #e3b341;
-      --steep: #f85149;
+      --sidebar-bg: #f4f2ec;
+      --sidebar-border: #ddd9ce;
+      --text: #2c2c2c;
+      --muted: #6b6560;
+      --accent: #c62828;
+      --accent-soft: #e57373;
+      --flat: #9e9e9e;
+      --run-hike: #2e7d32;
+      --hike: #f9a825;
+      --steep: #c62828;
+      --chart-bg: #fff;
+      --chart-grid: #e8e4db;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
     body {
       font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
+      background: #e8e6e1;
       color: var(--text);
       line-height: 1.45;
-      min-height: 100vh;
-    }
-    header {
-      padding: 1rem 1.25rem;
-      border-bottom: 1px solid var(--border);
       display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
+      flex-direction: column;
+    }
+    .app-header {
+      flex-shrink: 0;
+      padding: 0.5rem 1rem;
+      background: #fff;
+      border-bottom: 1px solid var(--sidebar-border);
+      display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
     }
-    .header-text { flex: 1; min-width: 12rem; }
-    h1 { font-size: 1.15rem; font-weight: 600; }
-    .subtitle { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+    .app-header h1 { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
     .import-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
       background: var(--accent);
       color: #fff;
       border: none;
-      padding: 0.5rem 1rem;
+      padding: 0.4rem 0.9rem;
       border-radius: 6px;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 500;
       cursor: pointer;
-      white-space: nowrap;
     }
-    .import-btn:hover { filter: brightness(1.08); }
+    .import-btn:hover { filter: brightness(1.06); }
     .import-btn input { display: none; }
     .import-btn.loading { opacity: 0.7; pointer-events: none; }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-      gap: 0.6rem;
-      padding: 0.85rem 1.25rem;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
+    .import-btn.secondary {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--sidebar-border);
     }
-    .stat label {
+    .main-layout {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+    .map-panel {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    #map { flex: 1; min-height: 0; width: 100%; background: #d4e8c8; }
+    .sidebar {
+      width: min(340px, 38vw);
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-left: 1px solid var(--sidebar-border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-inner { padding: 1rem 1rem 1.25rem; }
+    .route-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 0.25rem;
+    }
+    .route-meta { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .method-note {
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: rgba(255,255,255,0.65);
+      border: 1px solid var(--sidebar-border);
+      border-radius: 6px;
+      padding: 0.45rem 0.55rem;
+      margin-bottom: 0.85rem;
+      line-height: 1.4;
+    }
+    .hero-stat {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.15rem;
+    }
+    .hero-stat label {
       display: block;
       font-size: 0.68rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 0.1rem;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .stat-box {
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--sidebar-border);
+      border-radius: 6px;
+      padding: 0.45rem 0.55rem;
+    }
+    .stat-box label {
+      display: block;
+      font-size: 0.65rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: var(--muted);
     }
-    .stat span { font-size: 1.15rem; font-weight: 600; }
-    .stat small { display: block; font-size: 0.65rem; color: var(--muted); font-weight: 400; }
-    .stat.selection { outline: 1px solid var(--accent); border-radius: 6px; padding: 0.35rem 0.5rem; }
-    #map { height: 42vh; min-height: 220px; width: 100%; }
-    .charts {
-      padding: 0.75rem 1rem 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
+    .stat-box span { font-size: 1rem; font-weight: 600; }
+    .stat-box small { display: block; font-size: 0.62rem; color: var(--muted); margin-top: 0.1rem; }
+    .section-stats {
+      background: rgba(198, 40, 40, 0.08);
+      border: 1px solid var(--accent-soft);
+      border-radius: 6px;
+      padding: 0.5rem 0.6rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.78rem;
     }
-    .chart-wrap {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.5rem 0.35rem 0.35rem;
-    }
-    .chart-title {
+    .section-stats[hidden] { display: none; }
+    .section-stats strong { color: var(--accent); }
+    .hover-readout {
       font-size: 0.75rem;
       color: var(--muted);
-      padding: 0 0.5rem 0.35rem;
+      min-height: 1.1rem;
+      margin-bottom: 0.5rem;
     }
-    svg.profile { width: 100%; height: 160px; display: block; cursor: crosshair; }
-    svg.grade-chart { width: 100%; height: 56px; display: block; }
+    .sidebar-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
+    }
+    button.ghost {
+      background: #fff;
+      border: 1px solid var(--sidebar-border);
+      color: var(--text);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    button.ghost:hover { border-color: var(--accent); }
+    .charts-block {
+      margin-top: auto;
+      border-top: 1px solid var(--sidebar-border);
+      padding-top: 0.75rem;
+    }
+    .chart-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .chart-wrap {
+      background: var(--chart-bg);
+      border: 1px solid var(--sidebar-border);
+      border-radius: 6px;
+      padding: 0.25rem 0.15rem 0.15rem;
+      margin-bottom: 0.5rem;
+    }
+    svg.profile { width: 100%; height: 130px; display: block; cursor: crosshair; }
+    svg.grade-chart { width: 100%; height: 48px; display: block; cursor: crosshair; }
     .legend {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.75rem;
-      font-size: 0.72rem;
+      gap: 0.5rem 0.75rem;
+      font-size: 0.65rem;
       color: var(--muted);
-      padding: 0.25rem 0.5rem 0;
     }
     .legend i {
       display: inline-block;
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
       border-radius: 2px;
-      margin-right: 0.25rem;
+      margin-right: 0.2rem;
       vertical-align: -1px;
     }
-    .controls {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      padding: 0 1rem 0.75rem;
-      flex-wrap: wrap;
-    }
-    button.secondary {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.35rem 0.75rem;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      cursor: pointer;
-    }
-    button.secondary:hover { border-color: var(--accent); }
-    .hint { font-size: 0.75rem; color: var(--muted); }
     .empty-state {
-      padding: 3rem 1.5rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
       text-align: center;
-      max-width: 28rem;
-      margin: 0 auto;
     }
-    .empty-state p { color: var(--muted); margin-top: 0.75rem; font-size: 0.9rem; }
-    .empty-state .import-btn { margin-top: 1.25rem; }
+    .empty-state p { color: var(--muted); margin-top: 0.75rem; max-width: 22rem; font-size: 0.9rem; }
+    .empty-state .import-btn { margin-top: 1rem; }
     .error-banner {
       display: none;
-      margin: 0 1.25rem 0.75rem;
-      padding: 0.6rem 0.85rem;
-      background: rgba(248, 81, 73, 0.12);
+      margin: 0 1rem;
+      padding: 0.5rem 0.75rem;
+      background: #ffebee;
       border: 1px solid var(--steep);
       border-radius: 6px;
       color: var(--steep);
-      font-size: 0.85rem;
+      font-size: 0.82rem;
     }
     .error-banner.visible { display: block; }
     [hidden] { display: none !important; }
+    .leaflet-control-zoom { border: none !important; box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important; }
+    @media (max-width: 720px) {
+      .main-layout { flex-direction: column; }
+      .sidebar { width: 100%; max-height: 45vh; border-left: none; border-top: 1px solid var(--sidebar-border); }
+      #map { min-height: 45vh; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div class="header-text">
-      <h1 id="route-name">Trail GPX Analyzer</h1>
-      <p class="subtitle" id="route-meta">Import a GPX file to analyze distance, elevation, and grade.</p>
-    </div>
+  <header class="app-header">
+    <h1>Trail GPX Analyzer</h1>
     <label class="import-btn" id="import-label">
       Import GPX
       <input type="file" id="gpx-file" accept=".gpx,application/gpx+xml" />
@@ -164,41 +246,59 @@
   <p class="error-banner" id="error-banner" role="alert"></p>
 
   <section id="empty-state" class="empty-state">
-    <p>Drop a race or trail GPX here. Processing runs entirely in your browser — nothing is uploaded to a server.</p>
+    <p>Drop a race or trail GPX here. Everything runs in your browser — nothing is uploaded.</p>
     <label class="import-btn">
       Choose GPX file
       <input type="file" class="gpx-file-input" accept=".gpx,application/gpx+xml" />
     </label>
   </section>
 
-  <section id="main-content" hidden>
-    <div class="stats" id="stats"></div>
-    <div id="map"></div>
-    <div class="controls">
-      <button type="button" class="secondary" id="reset-zoom">Reset section</button>
-      <label class="import-btn" style="padding:0.35rem 0.75rem;font-size:0.8rem">
-        New GPX
-        <input type="file" class="gpx-file-input" accept=".gpx,application/gpx+xml" />
-      </label>
-      <span class="hint">Drag on the elevation profile to select a section. Stats update for the selection.</span>
+  <div id="main-content" class="main-layout" hidden>
+    <div class="map-panel">
+      <div id="map"></div>
     </div>
-    <div class="charts">
-      <div class="chart-wrap">
-        <div class="chart-title">Elevation (m) — distance (km) · colored by grade</div>
-        <svg class="profile" id="elev-chart" aria-label="Elevation profile"></svg>
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        <h2 class="route-title" id="route-title">—</h2>
+        <p class="route-meta" id="route-meta"></p>
+        <p class="method-note" id="method-note"></p>
+
+        <div class="hero-stat">
+          <label>Distance</label>
+          <span id="stat-distance">—</span>
+        </div>
+        <div class="stat-grid" id="stat-grid"></div>
+
+        <div class="section-stats" id="section-stats" hidden></div>
+        <p class="hover-readout" id="hover-readout"></p>
+
+        <div class="sidebar-controls">
+          <button type="button" class="ghost" id="reset-zoom">Reset section</button>
+          <label class="import-btn secondary" style="padding:0.3rem 0.6rem;font-size:0.75rem">
+            New GPX
+            <input type="file" class="gpx-file-input" accept=".gpx,application/gpx+xml" />
+          </label>
+        </div>
+
+        <div class="charts-block">
+          <p class="chart-label">Elevation · drag to select a section</p>
+          <div class="chart-wrap">
+            <svg class="profile" id="elev-chart" aria-label="Elevation profile"></svg>
+          </div>
+          <p class="chart-label">Grade</p>
+          <div class="chart-wrap">
+            <svg class="grade-chart" id="grade-chart"></svg>
+          </div>
+          <div class="legend">
+            <span><i style="background:var(--flat)"></i>Runnable (0–8%)</span>
+            <span><i style="background:var(--run-hike)"></i>Run + hike (8–15%)</span>
+            <span><i style="background:var(--hike)"></i>Hike (15–25%)</span>
+            <span><i style="background:var(--steep)"></i>Steep (&gt;25%)</span>
+          </div>
+        </div>
       </div>
-      <div class="chart-wrap">
-        <div class="chart-title">Grade (%)</div>
-        <svg class="grade-chart" id="grade-chart"></svg>
-      </div>
-      <div class="legend">
-        <span><i style="background:var(--flat)"></i>Runnable (0–8%)</span>
-        <span><i style="background:var(--run-hike)"></i>Run + hike (8–15%)</span>
-        <span><i style="background:var(--hike)"></i>Hike (15–25%)</span>
-        <span><i style="background:var(--steep)"></i>Steep (&gt;25%)</span>
-      </div>
-    </div>
-  </section>
+    </aside>
+  </div>
 
   <script src="gpx.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -209,10 +309,12 @@
     const GRADE_HIKE = 25;
 
     let route = null;
-    let map, routeLine, highlightLine;
+    let map, baseLine, routeLine, highlightLine, hoverMarker;
     let selStart = null, selEnd = null;
     let dragging = null;
     let viewMinKm = null, viewMaxKm = null;
+    let hoverKm = null;
+    let chartLayout = null;
     let interactionReady = false;
 
     const gradeColor = (g) => {
@@ -224,32 +326,96 @@
     };
 
     function showError(msg) {
-      const el = document.getElementById("error-banner");
-      el.textContent = msg;
-      el.classList.add("visible");
+      document.getElementById("error-banner").textContent = msg;
+      document.getElementById("error-banner").classList.add("visible");
     }
-
     function clearError() {
-      const el = document.getElementById("error-banner");
-      el.textContent = "";
-      el.classList.remove("visible");
+      document.getElementById("error-banner").classList.remove("visible");
     }
 
     function setLoading(loading) {
       const label = document.getElementById("import-label");
       label.classList.toggle("loading", loading);
-      const text = label.childNodes[0];
-      if (text?.nodeType === Node.TEXT_NODE) {
-        text.textContent = loading ? "Processing…" : "Import GPX";
-      }
+      const t = label.childNodes[0];
+      if (t?.nodeType === Node.TEXT_NODE) t.textContent = loading ? "Processing…" : "Import GPX";
     }
 
     function destroyMap() {
-      if (map) {
-        map.remove();
-        map = routeLine = highlightLine = null;
-      }
+      if (map) { map.remove(); map = null; }
+      baseLine = routeLine = highlightLine = hoverMarker = null;
       document.getElementById("map").innerHTML = "";
+    }
+
+    function closestFullIndex(km) {
+      const arr = route.full.km;
+      let best = 0, bestD = Infinity;
+      for (let i = 0; i < arr.length; i++) {
+        const d = Math.abs(arr[i] - km);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      return best;
+    }
+
+    function setHoverAtKm(km) {
+      if (!route || !map) return;
+      hoverKm = km;
+      const i = closestFullIndex(km);
+      const lat = route.full.lat[i];
+      const lon = route.full.lon[i];
+      const ele = route.full.elevation_m[i];
+      const grade = route.full.grade_pct[i];
+
+      if (!hoverMarker) {
+        hoverMarker = L.circleMarker([lat, lon], {
+          radius: 9,
+          color: "#fff",
+          weight: 3,
+          fillColor: "#c62828",
+          fillOpacity: 1,
+          interactive: false,
+        }).addTo(map);
+      } else {
+        hoverMarker.setLatLng([lat, lon]);
+      }
+
+      document.getElementById("hover-readout").textContent =
+        `${km.toFixed(2)} km · ${Math.round(ele)} m · ${grade >= 0 ? "+" : ""}${grade.toFixed(1)}%`;
+
+      drawCharts();
+    }
+
+    function clearHover() {
+      hoverKm = null;
+      if (hoverMarker) {
+        map.removeLayer(hoverMarker);
+        hoverMarker = null;
+      }
+      document.getElementById("hover-readout").textContent = "";
+      drawCharts();
+    }
+
+    function renderGlobalStats() {
+      const s = route.summary;
+      document.getElementById("route-title").textContent = route.name;
+      document.getElementById("route-meta").textContent = route.source_gpx;
+      document.getElementById("method-note").textContent =
+        `Elevation gain uses ${route.method.label} to filter GPS noise. Values are comparable across tracks; raw GPX sums are often much higher.`;
+      document.getElementById("stat-distance").textContent = `${s.distance_km} km`;
+      document.getElementById("stat-grid").innerHTML = `
+        <div class="stat-box"><label>↑ Gain</label><span>${s.elevation_gain_m} m</span></div>
+        <div class="stat-box"><label>↓ Loss</label><span>${s.elevation_loss_m} m</span></div>
+        <div class="stat-box"><label>Min elev</label><span>${s.min_elevation_m} m</span></div>
+        <div class="stat-box"><label>Max elev</label><span>${s.max_elevation_m} m</span></div>
+      `;
+    }
+
+    function renderSectionStats(seg) {
+      const el = document.getElementById("section-stats");
+      if (!seg) { el.hidden = true; return; }
+      el.hidden = false;
+      el.innerHTML = `<strong>Section</strong> ${seg.start_km}–${seg.end_km} km · ` +
+        `${seg.distance_km.toFixed(2)} km · ↑${seg.gain_m} m ↓${seg.loss_m} m · ` +
+        `avg ${seg.avg_grade_pct}% · max ${seg.max_grade_up_pct}% / ${seg.max_grade_down_pct}%`;
     }
 
     function applyRoute(data) {
@@ -258,16 +424,15 @@
       THRESHOLD_M = route.method?.threshold_m ?? 6;
       selStart = selEnd = null;
       viewMinKm = viewMaxKm = null;
+      hoverKm = null;
 
       document.getElementById("empty-state").hidden = true;
       document.getElementById("main-content").hidden = false;
-      document.getElementById("route-name").textContent = route.name;
-      document.getElementById("route-meta").textContent =
-        `${route.source_gpx} · ${route.summary.point_count} points · ${route.method.label}`;
 
+      renderGlobalStats();
+      renderSectionStats(null);
       destroyMap();
       initMap();
-      renderStats(null);
       drawCharts();
       if (!interactionReady) {
         setupInteraction();
@@ -276,36 +441,29 @@
       document.getElementById("reset-zoom").onclick = () => {
         selStart = selEnd = null;
         viewMinKm = viewMaxKm = null;
-        renderStats(null);
+        renderSectionStats(null);
         drawCharts();
         updateMapHighlight();
-        if (routeLine) routeLine.setStyle({ opacity: 0.85 });
+        if (routeLine) routeLine.setStyle({ opacity: 1 });
       };
     }
 
     function handleGpxFile(file) {
       if (!file) return;
-      if (!/\.gpx$/i.test(file.name)) {
-        showError("Please choose a .gpx file.");
-        return;
-      }
+      if (!/\.gpx$/i.test(file.name)) { showError("Please choose a .gpx file."); return; }
       clearError();
       setLoading(true);
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const data = GpxAnalyzer.buildRouteFromGpx(reader.result, file.name);
-          applyRoute(data);
+          applyRoute(GpxAnalyzer.buildRouteFromGpx(reader.result, file.name));
         } catch (e) {
           showError(e.message || "Could not parse GPX.");
         } finally {
           setLoading(false);
         }
       };
-      reader.onerror = () => {
-        setLoading(false);
-        showError("Could not read file.");
-      };
+      reader.onerror = () => { setLoading(false); showError("Could not read file."); };
       reader.readAsText(file);
     }
 
@@ -316,44 +474,31 @@
         e.target.value = "";
       });
     }
-
     document.querySelectorAll(".gpx-file-input").forEach(bindFileInput);
     bindFileInput(document.getElementById("gpx-file"));
-
-    function bindDropZone(el) {
-      el.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        el.style.outline = "2px dashed var(--accent)";
-      });
-      el.addEventListener("dragleave", () => {
-        el.style.outline = "";
-      });
+    (function bindDrop() {
+      const el = document.getElementById("empty-state");
+      el.addEventListener("dragover", (e) => { e.preventDefault(); });
       el.addEventListener("drop", (e) => {
         e.preventDefault();
-        el.style.outline = "";
-        const file = e.dataTransfer?.files?.[0];
-        if (file) handleGpxFile(file);
+        const f = e.dataTransfer?.files?.[0];
+        if (f) handleGpxFile(f);
       });
-    }
-    bindDropZone(document.getElementById("empty-state"));
+    })();
 
     function thresholdGainLoss(eles, threshold) {
-      let gain = 0, loss = 0;
-      let rMin = eles[0], rMax = eles[0];
+      let gain = 0, loss = 0, rMin = eles[0], rMax = eles[0];
       for (const e of eles) {
         if (e < rMin) rMin = e;
-        const up = e - rMin;
-        if (up >= threshold) { gain += up; rMin = e; }
+        if (e - rMin >= threshold) { gain += e - rMin; rMin = e; }
         if (e > rMax) rMax = e;
-        const down = rMax - e;
-        if (down >= threshold) { loss += down; rMax = e; }
+        if (rMax - e >= threshold) { loss += rMax - e; rMax = e; }
       }
       return { gain, loss };
     }
 
     function segmentStats(km0, km1) {
-      const fullKm = route.full.km;
-      const fullEle = route.full.elevation_m;
+      const fullKm = route.full.km, fullEle = route.full.elevation_m;
       let i0 = fullKm.findIndex((k) => k >= km0);
       if (i0 < 0) i0 = fullKm.length - 1;
       let i1 = fullKm.length - 1;
@@ -367,153 +512,151 @@
       const elevDelta = eles.length >= 2 ? eles[eles.length - 1] - eles[0] : 0;
       const avgGrade = dist > 0 ? (elevDelta / (dist * 1000)) * 100 : 0;
       return {
-        distance_km: dist,
-        gain_m: Math.round(gain),
-        loss_m: Math.round(loss),
+        distance_km: dist, gain_m: Math.round(gain), loss_m: Math.round(loss),
         avg_grade_pct: +avgGrade.toFixed(1),
-        max_grade_up_pct: +maxUp.toFixed(1),
-        max_grade_down_pct: +maxDown.toFixed(1),
-        start_km: +km0.toFixed(2),
-        end_km: +km1.toFixed(2),
+        max_grade_up_pct: +maxUp.toFixed(1), max_grade_down_pct: +maxDown.toFixed(1),
+        start_km: +km0.toFixed(2), end_km: +km1.toFixed(2),
       };
-    }
-
-    function renderStats(seg) {
-      const s = route.summary;
-      const full = !seg;
-      const el = document.getElementById("stats");
-      const items = full ? [
-        ["Distance", `${s.distance_km} km`],
-        ["Elevation gain", `${s.elevation_gain_m} m`, route.method.label],
-        ["Elevation loss", `${s.elevation_loss_m} m`],
-        ["Naive gain", `${s.naive_gain_m} m`, "Raw sum (Komoot-style)"],
-        ["Min / max", `${s.min_elevation_m} – ${s.max_elevation_m} m`],
-      ] : [
-        ["Section", `${seg.start_km} – ${seg.end_km} km`, "selected"],
-        ["Distance", `${seg.distance_km.toFixed(2)} km`],
-        ["Gain", `${seg.gain_m} m`],
-        ["Loss", `${seg.loss_m} m`],
-        ["Avg grade", `${seg.avg_grade_pct}%`],
-        ["Max up / down", `${seg.max_grade_up_pct}% / ${seg.max_grade_down_pct}%`],
-      ];
-      el.innerHTML = items.map(([label, val, sub]) =>
-        `<div class="stat${!full ? " selection" : ""}"><label>${label}</label><span>${val}</span>${sub ? `<small>${sub}</small>` : ""}</div>`
-      ).join("");
     }
 
     function initMap() {
       const coords = route.profile.lat.map((lat, i) => [lat, route.profile.lon[i]]);
-      map = L.map("map", { zoomControl: true });
-      L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenTopoMap",
-        maxZoom: 17,
+      map = L.map("map", { zoomControl: false });
+      L.control.zoom({ position: "bottomright" }).addTo(map);
+
+      // Mapy.cz outdoor/hiking style (similar to mapy.com tourist map)
+      const mapy = L.tileLayer(
+        "https://mapserver.mapy.cz/turist-m/{z}-{x}-{y}",
+        {
+          attribution: '<a href="https://api.mapy.cz/copyright" target="_blank">Mapy.cz</a>',
+          maxZoom: 18,
+        }
+      );
+      const fallback = L.tileLayer(
+        "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        { attribution: "&copy; OpenTopoMap", maxZoom: 17 }
+      );
+      mapy.on("tileerror", () => {
+        if (!map.hasLayer(fallback)) fallback.addTo(map);
+      });
+      mapy.addTo(map);
+
+      baseLine = L.polyline(coords, {
+        color: "#fff", weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round",
       }).addTo(map);
-      routeLine = L.polyline(coords, { color: "#6e7681", weight: 4, opacity: 0.85 }).addTo(map);
-      highlightLine = L.polyline([], { color: "#3d8bfd", weight: 6, opacity: 1 }).addTo(map);
-      map.fitBounds(routeLine.getBounds(), { padding: [24, 24] });
+      routeLine = L.polyline(coords, {
+        color: "#c62828", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round",
+      }).addTo(map);
+      highlightLine = L.polyline([], {
+        color: "#ff6f00", weight: 7, opacity: 1, lineCap: "round",
+      }).addTo(map);
+
+      map.fitBounds(routeLine.getBounds(), { padding: [32, 32] });
+
+      map.on("mousemove", (e) => {
+        if (dragging) return;
+        let best = 0, bestM = Infinity;
+        const full = route.full;
+        for (let i = 0; i < full.lat.length; i++) {
+          const m = map.distance(e.latlng, L.latLng(full.lat[i], full.lon[i]));
+          if (m < bestM) { bestM = m; best = i; }
+        }
+        if (bestM > 120) { clearHover(); return; }
+        setHoverAtKm(full.km[best]);
+      });
+      map.on("mouseout", () => { if (!dragging) clearHover(); });
     }
 
     function updateMapHighlight() {
       if (!highlightLine) return;
-      const km = route.profile.km;
-      const lat = route.profile.lat;
-      const lon = route.profile.lon;
+      const { km, lat, lon } = route.profile;
       if (selStart == null || selEnd == null) {
         highlightLine.setLatLngs([]);
-        routeLine.setStyle({ opacity: 0.85 });
+        routeLine.setStyle({ opacity: 1 });
         return;
       }
-      const a = Math.min(selStart, selEnd);
-      const b = Math.max(selStart, selEnd);
+      const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
       const seg = [];
       for (let i = 0; i < km.length; i++) {
         if (km[i] >= a && km[i] <= b) seg.push([lat[i], lon[i]]);
       }
       highlightLine.setLatLngs(seg);
-      routeLine.setStyle({ opacity: 0.45 });
+      routeLine.setStyle({ opacity: 0.55 });
     }
 
     function chartRange() {
       const km = route.profile.km;
-      return {
-        minK: viewMinKm ?? km[0],
-        maxK: viewMaxKm ?? km[km.length - 1],
-      };
+      return { minK: viewMinKm ?? km[0], maxK: viewMaxKm ?? km[km.length - 1] };
     }
 
     function drawCharts() {
       if (!route) return;
       const prof = route.profile;
       const { minK, maxK } = chartRange();
-      const pad = { l: 48, r: 12, t: 8, b: 22 };
-      const W = document.getElementById("elev-chart").clientWidth || 800;
-      const H = 160;
+      const pad = { l: 40, r: 8, t: 6, b: 18 };
+      const W = document.getElementById("elev-chart").clientWidth || 280;
+      const H = 130;
 
       const indices = prof.km.map((k, i) => i).filter((i) => prof.km[i] >= minK && prof.km[i] <= maxK);
       if (indices.length < 2) return;
 
       const eles = indices.map((i) => prof.elevation_m[i]);
-      const eleMin = Math.min(...eles) - 20;
-      const eleMax = Math.max(...eles) + 20;
+      const eleMin = Math.min(...eles) - 15;
+      const eleMax = Math.max(...eles) + 15;
       const gradeMin = -30, gradeMax = 30;
 
       const xScale = (k) => pad.l + ((k - minK) / (maxK - minK)) * (W - pad.l - pad.r);
       const yScale = (e) => pad.t + (1 - (e - eleMin) / (eleMax - eleMin)) * (H - pad.t - pad.b);
-      const yG = (g) => pad.t + (1 - (g - gradeMin) / (gradeMax - gradeMin)) * (56 - pad.t - 14);
-
-      const segments = [];
-      for (let j = 0; j < indices.length - 1; j++) {
-        const i = indices[j], i2 = indices[j + 1];
-        const g = prof.grade_pct[i2];
-        segments.push({
-          x1: xScale(prof.km[i]),
-          y1: yScale(prof.elevation_m[i]),
-          x2: xScale(prof.km[i2]),
-          y2: yScale(prof.elevation_m[i2]),
-          color: gradeColor(g),
-        });
-      }
+      const yG = (g) => pad.t + (1 - (g - gradeMin) / (gradeMax - gradeMin)) * (48 - pad.t - 12);
+      chartLayout = { pad, minK, maxK, W, H, xScale };
 
       const elevSvg = document.getElementById("elev-chart");
       elevSvg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      let svg = `<rect width="${W}" height="${H}" fill="transparent"/>`;
+      let svg = `<rect width="${W}" height="${H}" fill="#fff"/>`;
       for (let e = Math.ceil(eleMin / 100) * 100; e <= eleMax; e += 100) {
         const y = yScale(e);
-        svg += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#2d333b"/>`;
-        svg += `<text x="${pad.l - 6}" y="${y + 4}" fill="#8b949e" font-size="9" text-anchor="end">${e}</text>`;
+        svg += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#e8e4db"/>`;
+        svg += `<text x="${pad.l - 4}" y="${y + 3}" fill="#8a847a" font-size="8" text-anchor="end">${e}</text>`;
       }
-      const step = maxK - minK > 30 ? 10 : 5;
-      for (let k = Math.ceil(minK / step) * step; k <= maxK; k += step) {
-        const x = xScale(k);
-        svg += `<line x1="${x}" y1="${pad.t}" x2="${x}" y2="${H - pad.b}" stroke="#2d333b"/>`;
-        svg += `<text x="${x}" y="${H - 4}" fill="#8b949e" font-size="9" text-anchor="middle">${k}</text>`;
+      for (let j = 0; j < indices.length - 1; j++) {
+        const i = indices[j], i2 = indices[j + 1];
+        const g = prof.grade_pct[i2];
+        const c = gradeColor(g);
+        const flat = c === "var(--flat)";
+        svg += `<line x1="${xScale(prof.km[i])}" y1="${yScale(prof.elevation_m[i])}" ` +
+          `x2="${xScale(prof.km[i2])}" y2="${yScale(prof.elevation_m[i2])}" ` +
+          `stroke="${c}" stroke-width="${flat ? 1.8 : 2.2}" stroke-linecap="round" opacity="${flat ? 0.5 : 1}"/>`;
       }
-      segments.forEach((s) => {
-        const flat = s.color === "var(--flat)";
-        svg += `<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}" stroke="${s.color}" stroke-width="${flat ? 2 : 2.5}" stroke-linecap="round" opacity="${flat ? 0.55 : 1}"/>`;
-      });
+      if (hoverKm != null && hoverKm >= minK && hoverKm <= maxK) {
+        const hx = xScale(hoverKm);
+        svg += `<line x1="${hx}" y1="${pad.t}" x2="${hx}" y2="${H - pad.b}" stroke="#c62828" stroke-width="1.5" opacity="0.85"/>`;
+        const hi = closestFullIndex(hoverKm);
+        const hy = yScale(route.full.elevation_m[hi]);
+        svg += `<circle cx="${hx}" cy="${hy}" r="4" fill="#c62828" stroke="#fff" stroke-width="1.5"/>`;
+      }
       if (selStart != null && selEnd != null) {
         const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
         const x1 = xScale(a), x2 = xScale(b);
-        svg += `<rect x="${x1}" y="${pad.t}" width="${x2 - x1}" height="${H - pad.t - pad.b}" fill="var(--accent)" opacity="0.15"/>`;
-        svg += `<line x1="${x1}" y1="${pad.t}" x2="${x1}" y2="${H - pad.b}" stroke="var(--accent)" stroke-width="2"/>`;
-        svg += `<line x1="${x2}" y1="${pad.t}" x2="${x2}" y2="${H - pad.b}" stroke="var(--accent)" stroke-width="2"/>`;
+        svg += `<rect x="${x1}" y="${pad.t}" width="${x2 - x1}" height="${H - pad.t - pad.b}" fill="#c62828" opacity="0.1"/>`;
+        svg += `<line x1="${x1}" y1="${pad.t}" x2="${x1}" y2="${H - pad.b}" stroke="#c62828" stroke-width="1.5"/>`;
+        svg += `<line x1="${x2}" y1="${pad.t}" x2="${x2}" y2="${H - pad.b}" stroke="#c62828" stroke-width="1.5"/>`;
       }
       elevSvg.innerHTML = svg;
 
-      const gW = W, gH = 56;
       const gradeSvg = document.getElementById("grade-chart");
-      gradeSvg.setAttribute("viewBox", `0 0 ${gW} ${gH}`);
-      let gsvg = `<rect width="${gW}" height="${gH}" fill="transparent"/>`;
-      gsvg += `<line x1="${pad.l}" y1="${yG(0)}" x2="${gW - pad.r}" y2="${yG(0)}" stroke="#8b949e" stroke-dasharray="4"/>`;
+      gradeSvg.setAttribute("viewBox", `0 0 ${W} 48`);
+      let gsvg = `<rect width="${W}" height="48" fill="#fff"/>`;
+      gsvg += `<line x1="${pad.l}" y1="${yG(0)}" x2="${W - pad.r}" y2="${yG(0)}" stroke="#ccc" stroke-dasharray="3"/>`;
       for (let j = 0; j < indices.length - 1; j++) {
         const i = indices[j], i2 = indices[j + 1];
         const x1 = xScale(prof.km[i]), x2 = xScale(prof.km[i2]);
         const g = prof.grade_pct[i2];
         const y0 = yG(0), y1 = yG(g);
         const c = gradeColor(g);
-        const flat = c === "var(--flat)";
-        gsvg += `<rect x="${x1}" y="${Math.min(y0, y1)}" width="${Math.max(1, x2 - x1)}" height="${Math.abs(y1 - y0)}" fill="${c}" opacity="${flat ? 0.45 : 0.9}"/>`;
+        gsvg += `<rect x="${x1}" y="${Math.min(y0, y1)}" width="${Math.max(1, x2 - x1)}" height="${Math.abs(y1 - y0)}" fill="${c}" opacity="${c === "var(--flat)" ? 0.4 : 0.85}"/>`;
+      }
+      if (hoverKm != null && hoverKm >= minK && hoverKm <= maxK) {
+        gsvg += `<line x1="${xScale(hoverKm)}" y1="${pad.t}" x2="${xScale(hoverKm)}" y2="44" stroke="#c62828" stroke-width="1.5" opacity="0.85"/>`;
       }
       gradeSvg.innerHTML = gsvg;
     }
@@ -522,22 +665,31 @@
       const rect = svg.getBoundingClientRect();
       const vb = svg.viewBox.baseVal;
       const x = ((evt.clientX - rect.left) / rect.width) * vb.width;
-      const pad = { l: 48, r: 12 };
-      const { minK, maxK } = chartRange();
-      return minK + ((x - pad.l) / (vb.width - pad.l - pad.r)) * (maxK - minK);
+      const { pad, minK, maxK, W } = chartLayout || { pad: { l: 40, r: 8 }, minK: 0, maxK: 1, W: 280 };
+      return minK + ((x - pad.l) / (W - pad.l - pad.r)) * (maxK - minK);
     }
 
     function setupInteraction() {
-      const svg = document.getElementById("elev-chart");
-      svg.addEventListener("mousedown", (e) => {
+      const onChartMove = (svg, e) => {
+        if (dragging || !route) return;
+        setHoverAtKm(kmFromEvent(svg, e));
+      };
+      const elev = document.getElementById("elev-chart");
+      const grade = document.getElementById("grade-chart");
+      elev.addEventListener("mousemove", (e) => onChartMove(elev, e));
+      grade.addEventListener("mousemove", (e) => onChartMove(grade, e));
+      elev.addEventListener("mouseleave", () => { if (!dragging) clearHover(); });
+      grade.addEventListener("mouseleave", () => { if (!dragging) clearHover(); });
+
+      elev.addEventListener("mousedown", (e) => {
         dragging = "select";
-        selStart = selEnd = kmFromEvent(svg, e);
+        selStart = selEnd = kmFromEvent(elev, e);
         drawCharts();
       });
       window.addEventListener("mousemove", (e) => {
         if (!dragging || !route) return;
-        selEnd = kmFromEvent(svg, e);
-        renderStats(segmentStats(Math.min(selStart, selEnd), Math.max(selStart, selEnd)));
+        selEnd = kmFromEvent(elev, e);
+        renderSectionStats(segmentStats(Math.min(selStart, selEnd), Math.max(selStart, selEnd)));
         drawCharts();
         updateMapHighlight();
       });
@@ -546,11 +698,8 @@
         dragging = null;
         if (selStart != null && selEnd != null) {
           const a = Math.min(selStart, selEnd), b = Math.max(selStart, selEnd);
-          if (b - a > 0.3) {
-            viewMinKm = a;
-            viewMaxKm = b;
-          }
-          renderStats(segmentStats(a, b));
+          if (b - a > 0.3) { viewMinKm = a; viewMaxKm = b; }
+          renderSectionStats(segmentStats(a, b));
           drawCharts();
           updateMapHighlight();
         }
