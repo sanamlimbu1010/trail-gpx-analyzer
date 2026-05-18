@@ -762,6 +762,15 @@
         const hi = closestFullIndex(hoverKm);
         const hy = yScale(route.full.elevation_m[hi]);
         svg += `<circle cx="${hx}" cy="${hy}" r="4" fill="#c62828" stroke="#fff" stroke-width="1.5"/>`;
+        const ele = Math.round(route.full.elevation_m[hi]);
+        const grade = route.full.grade_pct[hi];
+        const label = `${hoverKm.toFixed(1)} km · ${ele} m · ${grade >= 0 ? "+" : ""}${grade.toFixed(1)}%`;
+        const boxW = 132;
+        const boxH = 24;
+        const boxX = Math.min(Math.max(hx + 8, pad.l), W - pad.r - boxW);
+        const boxY = Math.max(pad.t + 4, hy - boxH - 8);
+        svg += `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="4" fill="#fff" stroke="#c62828" opacity="0.96"/>`;
+        svg += `<text x="${boxX + 8}" y="${boxY + 16}" fill="#2c2c2c" font-size="11" font-weight="600">${label}</text>`;
       }
       const dragScale = dragging
         ? buildChartScales(minK, maxK, pad, W, false).xScale
